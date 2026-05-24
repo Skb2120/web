@@ -1,0 +1,58 @@
+{
+  "skills": [
+    {
+      "name": "ESP32",
+      "level": 80,
+      "icon": "Cpu",
+      "id": "edf0a786-05ea-4e0f-9075-2378a6a0cfc1",
+      "created_at": "2026-05-13T15:19:55.811Z",
+      "updated_at": "2026-05-13T15:19:55.811Z"
+    }
+  ],
+  "projects": [
+    {
+      "title": "asjdhka",
+      "description": "asdhj",
+      "techStack": [
+        "asjdhjk"
+      ],
+      "imageURL": "http://localhost:5173/admin/projects",
+      "projectURL": "http://localhost:5173/admin/projects",
+      "githubURL": "http://localhost:5173/admin/projects",
+      "status": "pending",
+      "id": "9138bd6b-c113-4088-816f-de8fa472f02b",
+      "created_at": "2026-05-24T07:58:21.105Z",
+      "updated_at": "2026-05-24T08:00:39.056Z"
+    },
+    {
+      "title": "Based",
+      "description": "shdgah",
+      "techStack": [
+        "ajshd"
+      ],
+      "imageURL": "asjhd",
+      "projectURL": "JDSH",
+      "githubURL": "SDJFH",
+      "name": "",
+      "level": 80,
+      "icon": "Cpu",
+      "id": "cde602e4-7435-4143-b135-0990d1724621",
+      "created_at": "2026-05-13T15:20:22.925Z",
+      "updated_at": "2026-05-13T15:20:46.962Z"
+    }
+  ],
+  "services": [
+    {
+      "title": "NASDJNA",
+      "description": "SMMNDA",
+      "techStack": [
+        "JDSFHJKSHDJF"
+      ],
+      "domain": "IoT",
+      "id": "c21e0ed5-3995-4961-9469-7b6d74aa6dbe",
+      "created_at": "2026-05-13T15:22:24.366Z",
+      "updated_at": "2026-05-13T15:22:24.366Z"
+    }
+  ],
+  "lead_conversions": []
+}
