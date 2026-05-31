@@ -16,7 +16,7 @@ export default function Hero() {
         <div className="max-w-4xl">
           <div className="mb-5 inline-flex items-center gap-2 rounded-lg border border-emerald-300/25 bg-emerald-300/10 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-200">
             <RadioTower size={15} />
-            Embedded Systems | IoT | PCB | Full Stack
+            Embedded Systems | IoT | PCB | Full Stack | Freelancer
           </div>
           <h1 className="neon-text max-w-4xl text-5xl font-bold leading-tight text-white md:text-7xl lg:text-8xl">
             Mr. B. Sarathkumar B.E 
