@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listRows } from '../lib/portfolioApi'
+import { listRows, portfolioDataUpdatedEvent } from '../lib/portfolioApi'
 
 export default function usePortfolioData() {
   const [state, setState] = useState({
@@ -28,9 +28,23 @@ export default function usePortfolioData() {
     }
 
     load()
+    const refresh = () => load()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
 
+    window.addEventListener(portfolioDataUpdatedEvent, refresh)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    const refreshInterval = window.setInterval(refresh, 15000)
     return () => {
       mounted = false
+      window.removeEventListener(portfolioDataUpdatedEvent, refresh)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.clearInterval(refreshInterval)
     }
   }, [])
 

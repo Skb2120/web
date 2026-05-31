@@ -13,7 +13,6 @@ dotenv.config()
 const app = express()
 const port = process.env.PORT || 4000
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const leadStorePath = path.join(__dirname, '..', '.logs', 'lead-store.json')
 const portfolioStorePath = path.join(__dirname, '..', '.logs', 'portfolio-store.json')
 const portfolioTables = new Set(['skills', 'projects', 'services', 'lead_conversions', 'duty_exams'])
 
@@ -39,37 +38,43 @@ app.get('/health', (_request, response) => {
   response.json({ ok: true, service: 'portfolio-notification-bridge' })
 })
 
-app.get('/api/messages', async (_request, response) => {
-  const store = await readLeadStore()
-  response.json(store.messages)
-})
-
-app.get('/api/chat-leads', async (_request, response) => {
-  const store = await readLeadStore()
-  response.json(store.chat_leads)
-})
-
 app.get('/api/portfolio/:table', async (request, response) => {
   const table = request.params.table
-  if (!isKnownTable(table)) return response.status(404).json({ error: 'Unknown table' })
+  if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  const rows = await readTableRows(table)
-  response.json(rows)
+  const store = await readPortfolioStore()
+  response.json(store[table] ?? [])
 })
 
 app.post('/api/portfolio/:table', async (request, response) => {
   const table = request.params.table
-  if (!isKnownTable(table)) return response.status(404).json({ error: 'Unknown table' })
+  if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  const row = await upsertTableRow(table, request.body)
+  const store = await readPortfolioStore()
+  const now = new Date().toISOString()
+  const row = normalizePortfolioRow(table, {
+    ...request.body,
+    id: request.body.id || randomUUID(),
+    created_at: request.body.created_at || now,
+    updated_at: now,
+  })
+  const rows = Array.isArray(store[table]) ? store[table] : []
+
+  store[table] = rows.some((entry) => entry.id === row.id)
+    ? rows.map((entry) => (entry.id === row.id ? row : entry))
+    : [row, ...rows]
+
+  await writePortfolioStore(store)
   response.json(row)
 })
 
 app.delete('/api/portfolio/:table/:id', async (request, response) => {
   const table = request.params.table
-  if (!isKnownTable(table)) return response.status(404).json({ error: 'Unknown table' })
+  if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  await deleteTableRow(table, request.params.id)
+  const store = await readPortfolioStore()
+  store[table] = (store[table] ?? []).filter((entry) => entry.id !== request.params.id)
+  await writePortfolioStore(store)
   response.json({ ok: true })
 })
 
@@ -80,9 +85,8 @@ async function handleLeadNotification(request, response) {
   }
 
   try {
-    const stored = await storeLead(parsed.data)
     const result = await sendLeadEmail(parsed.data)
-    response.json({ ok: true, stored, result })
+    response.json({ ok: true, result })
   } catch (error) {
     console.error(error)
     response.status(502).json({ error: 'Lead email notification failed' })
@@ -92,128 +96,38 @@ async function handleLeadNotification(request, response) {
 app.post('/api/notifications/lead', handleLeadNotification)
 app.post('/api/whatsapp/lead', handleLeadNotification)
 
-async function readLeadStore() {
-  try {
-    const raw = await fs.readFile(leadStorePath, 'utf8')
-    const parsed = JSON.parse(raw)
-    return {
-      messages: Array.isArray(parsed.messages) ? parsed.messages : [],
-      chat_leads: Array.isArray(parsed.chat_leads) ? parsed.chat_leads : [],
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') console.error(error)
-    return { messages: [], chat_leads: [] }
-  }
-}
-
-async function writeLeadStore(store) {
-  await fs.mkdir(path.dirname(leadStorePath), { recursive: true })
-  await fs.writeFile(leadStorePath, JSON.stringify(store, null, 2))
-}
-
 async function readPortfolioStore() {
   try {
     const raw = await fs.readFile(portfolioStorePath, 'utf8')
     const parsed = JSON.parse(raw)
     return {
-      skills: Array.isArray(parsed.skills) ? parsed.skills : [],
-      projects: Array.isArray(parsed.projects) ? parsed.projects : [],
-      services: Array.isArray(parsed.services) ? parsed.services : [],
-      lead_conversions: Array.isArray(parsed.lead_conversions) ? parsed.lead_conversions : [],
-      duty_exams: Array.isArray(parsed.duty_exams) ? parsed.duty_exams : [],
+      ...parsed,
+      duty_exams: Array.isArray(parsed.duty_exams) ? parsed.duty_exams.map((row) => normalizePortfolioRow('duty_exams', row)) : [],
     }
   } catch (error) {
     if (error.code !== 'ENOENT') console.error(error)
-    return { skills: [], projects: [], services: [], lead_conversions: [], duty_exams: [] }
+    return { duty_exams: [] }
+  }
+}
+
+function normalizePortfolioRow(table, row) {
+  if (table !== 'duty_exams') return row
+
+  return {
+    date: row.date,
+    exam_name: row.exam_name,
+    college_name: row.college_name,
+    role: row.role === 'invigilator' ? 'Invigilator' : row.role,
+    payment_status: row.payment_status || 'pending',
+    id: row.id,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   }
 }
 
 async function writePortfolioStore(store) {
   await fs.mkdir(path.dirname(portfolioStorePath), { recursive: true })
   await fs.writeFile(portfolioStorePath, JSON.stringify(store, null, 2))
-}
-
-function isKnownTable(table) {
-  return portfolioTables.has(table) || table === 'messages' || table === 'chat_leads'
-}
-
-async function readTableRows(table) {
-  if (table === 'messages' || table === 'chat_leads') {
-    const store = await readLeadStore()
-    return store[table]
-  }
-
-  const store = await readPortfolioStore()
-  return store[table] ?? []
-}
-
-async function upsertTableRow(table, payload) {
-  const store = table === 'messages' || table === 'chat_leads'
-    ? await readLeadStore()
-    : await readPortfolioStore()
-  const rows = Array.isArray(store[table]) ? store[table] : []
-  const now = new Date().toISOString()
-  const row = {
-    ...payload,
-    id: payload.id || randomUUID(),
-    created_at: payload.created_at || now,
-    updated_at: now,
-  }
-  store[table] = rows.some((entry) => entry.id === row.id)
-    ? rows.map((entry) => (entry.id === row.id ? row : entry))
-    : [row, ...rows]
-
-  if (table === 'messages' || table === 'chat_leads') await writeLeadStore(store)
-  else await writePortfolioStore(store)
-
-  return row
-}
-
-async function deleteTableRow(table, id) {
-  const store = table === 'messages' || table === 'chat_leads'
-    ? await readLeadStore()
-    : await readPortfolioStore()
-  store[table] = (store[table] ?? []).filter((entry) => entry.id !== id)
-
-  if (table === 'messages' || table === 'chat_leads') await writeLeadStore(store)
-  else await writePortfolioStore(store)
-}
-
-async function storeLead(lead) {
-  const store = await readLeadStore()
-  const created_at = new Date().toISOString()
-  const id = randomUUID()
-
-  if (lead.type === 'chat_lead') {
-    const row = {
-      id,
-      name: lead.name,
-      phone: lead.phone || '',
-      service: lead.service || '',
-      idea: lead.idea,
-      messages: lead.messages || [],
-      status: 'new',
-      created_at,
-    }
-    store.chat_leads = [row, ...store.chat_leads]
-    await writeLeadStore(store)
-    return { table: 'chat_leads', id }
-  }
-
-  const row = {
-    id,
-    name: lead.name,
-    email: lead.email || '',
-    phone: lead.phone || '',
-    domain: lead.domain || '',
-    idea: lead.idea,
-    message: lead.message || '',
-    status: 'new',
-    created_at,
-  }
-  store.messages = [row, ...store.messages]
-  await writeLeadStore(store)
-  return { table: 'messages', id }
 }
 
 async function sendLeadEmail(lead) {
@@ -264,7 +178,7 @@ async function sendLeadEmail(lead) {
 }
 
 function buildLeadSubject(lead) {
-  return `[Portfolio] ${lead.type === 'chat_lead' ? 'New chatbot lead' : 'New contact lead'} from ${lead.name}`
+  return `${lead.type === 'chat_lead' ? 'New chatbot lead' : 'New contact lead'} from ${lead.name}`
 }
 
 function buildLeadText(lead) {

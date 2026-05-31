@@ -6,7 +6,7 @@ const initialForm = {
   name: '',
   email: '',
   phone: '',
-  domain: 'IoT',
+  domain: 'SELECT',
   idea: '',
   message: '',
 }
@@ -75,7 +75,7 @@ export default function ContactForm() {
           <Send size={18} />
           {status === 'sending' ? 'Sending...' : 'Send Lead'}
         </button>
-        {status === 'sent' && <p className="rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">Lead stored. I will contact you soon.</p>}
+        {status === 'sent' && <p className="rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-4 py-3 text-sm text-emerald-100">Lead Sent. I will contact you soon.</p>}
         {status === 'error' && <p className="rounded-lg border border-red-300/30 bg-red-400/10 px-4 py-3 text-sm text-red-100">{errorMessage || 'Unable to send right now. Check Supabase/backend settings.'}</p>}
       </div>
     </form>

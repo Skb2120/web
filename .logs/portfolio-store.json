@@ -11,34 +11,18 @@
   ],
   "projects": [
     {
-      "title": "asjdhka",
-      "description": "asdhj",
+      "title": "Speed based head",
+      "description": "fdg",
       "techStack": [
-        "asjdhjk"
+        "EMBEDDED"
       ],
-      "imageURL": "http://localhost:5173/admin/projects",
+      "status": "pending",
       "projectURL": "http://localhost:5173/admin/projects",
       "githubURL": "http://localhost:5173/admin/projects",
-      "status": "pending",
-      "id": "9138bd6b-c113-4088-816f-de8fa472f02b",
-      "created_at": "2026-05-24T07:58:21.105Z",
-      "updated_at": "2026-05-24T08:00:39.056Z"
-    },
-    {
-      "title": "Based",
-      "description": "shdgah",
-      "techStack": [
-        "ajshd"
-      ],
-      "imageURL": "asjhd",
-      "projectURL": "JDSH",
-      "githubURL": "SDJFH",
-      "name": "",
-      "level": 80,
-      "icon": "Cpu",
-      "id": "cde602e4-7435-4143-b135-0990d1724621",
-      "created_at": "2026-05-13T15:20:22.925Z",
-      "updated_at": "2026-05-13T15:20:46.962Z"
+      "imageURL": "https://igpmiktelxkorlwbtblj.supabase.co/storage/v1/object/public/portfolio-media/projects/4b470e64-7bb9-4cff-9cc3-cdc17b0a0ab0.jpg",
+      "id": "02617968-e513-4a9f-b59c-4438dd27885a",
+      "created_at": "2026-05-31T08:58:24.457Z",
+      "updated_at": "2026-05-31T08:58:24.457Z"
     }
   ],
   "services": [
@@ -54,5 +38,27 @@
       "updated_at": "2026-05-13T15:22:24.366Z"
     }
   ],
-  "lead_conversions": []
+  "lead_conversions": [],
+  "duty_exams": [
+    {
+      "date": "2026-05-25",
+      "exam_name": "moil",
+      "college_name": "pdkv",
+      "role": "IT Manager",
+      "payment_status": "received",
+      "id": "885086c0-d549-404d-9059-88d26b8bf53f",
+      "created_at": "2026-05-31T08:42:26.829Z",
+      "updated_at": "2026-05-31T08:43:48.746Z"
+    },
+    {
+      "date": "2026-05-31",
+      "exam_name": "gf",
+      "college_name": "pdkv",
+      "role": "Invigilator",
+      "payment_status": "pending",
+      "id": "57c01c34-54fd-4a5b-b197-a87507edaa01",
+      "created_at": "2026-05-31T08:46:33.480Z",
+      "updated_at": "2026-05-31T08:46:33.480Z"
+    }
+  ]
 }

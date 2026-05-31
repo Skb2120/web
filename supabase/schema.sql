@@ -64,10 +64,16 @@ create table if not exists public.duty_exams (
   id uuid primary key default gen_random_uuid(),
   date date not null,
   exam_name text not null,
-  role text not null check (role in ('invigilator', 'IT Manager', 'MAF', 'MOE', 'Lians Officers', 'Network Admin')),
+  college_name text not null,
+  role text not null check (role in ('Invigilator', 'IT Manager', 'MAF', 'MOE', 'Lians Officers', 'Network Admin')),
   payment_status text not null default 'pending' check (payment_status in ('pending', 'received')),
   created_at timestamptz not null default now()
 );
+
+alter table public.duty_exams add column if not exists college_name text not null default '';
+alter table public.duty_exams drop constraint if exists duty_exams_role_check;
+update public.duty_exams set role = 'Invigilator' where role = 'invigilator';
+alter table public.duty_exams add constraint duty_exams_role_check check (role in ('Invigilator', 'IT Manager', 'MAF', 'MOE', 'Lians Officers', 'Network Admin'));
 
 insert into storage.buckets (id, name, public)
 values ('portfolio-media', 'portfolio-media', true)

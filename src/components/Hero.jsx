@@ -30,7 +30,7 @@ export default function Hero() {
               <ArrowRight size={18} />
             </a>
             <a href="#contact" className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300/35 bg-slate-950/50 px-5 py-3 font-semibold text-emerald-100 transition hover:bg-emerald-300/10">
-              Start a Build
+              Contact Me
               <Zap size={18} />
             </a>
           </div>

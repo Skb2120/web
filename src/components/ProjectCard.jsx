@@ -4,15 +4,15 @@ import heroImage from '../assets/hero.png'
 
 export default function ProjectCard({ project }) {
   const [flipped, setFlipped] = useState(false)
-  const [imageFailed, setImageFailed] = useState(false)
+  const [failedImageURL, setFailedImageURL] = useState('')
   const techStack = Array.isArray(project.techStack) ? project.techStack : String(project.techStack ?? '').split(',').filter(Boolean)
-  const projectImage = !imageFailed && project.imageURL ? project.imageURL : heroImage
+  const projectImage = project.imageURL && failedImageURL !== project.imageURL ? project.imageURL : heroImage
 
   return (
     <article className={`flip-card h-[360px] ${flipped ? 'is-flipped' : ''}`} onClick={() => setFlipped((value) => !value)}>
       <div className="flip-card-inner relative h-full w-full">
         <div className="card-face glass-panel absolute inset-0 overflow-hidden rounded-lg">
-          <img className="h-full w-full object-cover opacity-85" src={projectImage} alt={project.title} onError={() => setImageFailed(true)} />
+          <img className="h-full w-full object-cover opacity-85" src={projectImage} alt={project.title} loading="lazy" onError={() => setFailedImageURL(project.imageURL)} />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
           <div className="absolute bottom-0 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">Project</p>

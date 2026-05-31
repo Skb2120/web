@@ -45,13 +45,13 @@ Deploy `server/index.js` to Railway and set:
 
 ```bash
 FRONTEND_ORIGIN=
-SMTP_HOST= smtp.gmail.com
-SMTP_PORT= 587
-SMTP_SECURE= false
-SMTP_USER= 21sarathkumar@gmail.com
-SMTP_PASS= ohhm czty ncmr ulhy
-SMTP_FROM= 21sarathkumar@gmail.com
-SMTP_TO= sarathkumarbbe@gmail.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
+SMTP_TO=
 ```
 
 Then set `VITE_BACKEND_URL` in Vercel to your Railway URL.

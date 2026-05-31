@@ -29,6 +29,7 @@ const backendTableEndpoints = {
   lead_conversions: '/api/portfolio/lead_conversions',
 }
 const fallbackWhenEmptyTables = new Set(['skills', 'projects', 'services'])
+export const portfolioDataUpdatedEvent = 'portfolio-data-updated'
 
 export async function listRows(table) {
   const backendRows = await listBackendRows(table)
@@ -50,21 +51,36 @@ export async function listRows(table) {
 
 export async function upsertRow(table, payload) {
   const backendRow = await upsertBackendRow(table, payload)
-  if (backendRow) return backendRow
-  if (!hasSupabase) return { ...payload, id: payload.id ?? crypto.randomUUID(), created_at: new Date().toISOString() }
+  if (backendRow) {
+    notifyPortfolioDataUpdated(table)
+    return backendRow
+  }
+  if (!hasSupabase) {
+    const row = { ...payload, id: payload.id ?? crypto.randomUUID(), created_at: new Date().toISOString() }
+    notifyPortfolioDataUpdated(table)
+    return row
+  }
 
   const { data, error } = await supabase.from(table).upsert(payload).select().single()
   if (error) throw normalizeSupabaseError(error)
+  notifyPortfolioDataUpdated(table)
   return data
 }
 
 export async function deleteRow(table, id) {
   const deleted = await deleteBackendRow(table, id)
-  if (deleted) return true
-  if (!hasSupabase) return true
+  if (deleted) {
+    notifyPortfolioDataUpdated(table)
+    return true
+  }
+  if (!hasSupabase) {
+    notifyPortfolioDataUpdated(table)
+    return true
+  }
 
   const { error } = await supabase.from(table).delete().eq('id', id)
   if (error) throw normalizeSupabaseError(error)
+  notifyPortfolioDataUpdated(table)
   return true
 }
 
@@ -101,13 +117,20 @@ export async function createChatLead(payload) {
 
 export async function uploadProjectImage(file) {
   if (!file) return ''
+  if (!file.type.startsWith('image/')) throw new Error('Choose an image file.')
   if (!hasSupabase) return await fileToDataUrl(file)
 
-  const filePath = `projects/${Date.now()}-${file.name.replace(/\s+/g, '-')}`
-  const { error } = await supabase.storage.from('portfolio-media').upload(filePath, file, { upsert: true })
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'image'
+  const filePath = `projects/${crypto.randomUUID()}.${extension}`
+  const { error } = await supabase.storage.from('portfolio-media').upload(filePath, file, {
+    cacheControl: '3600',
+    contentType: file.type,
+    upsert: false,
+  })
   if (error) throw error
 
   const { data } = supabase.storage.from('portfolio-media').getPublicUrl(filePath)
+  if (!data.publicUrl) throw new Error('Supabase did not return a public image URL.')
   return data.publicUrl
 }
 
@@ -221,4 +244,8 @@ function normalizeSupabaseError(error) {
   }
 
   return error instanceof Error ? error : new Error(error?.message || 'Supabase request failed.')
+}
+
+function notifyPortfolioDataUpdated(table) {
+  window.dispatchEvent(new CustomEvent(portfolioDataUpdatedEvent, { detail: { table } }))
 }

@@ -10,6 +10,7 @@ const fieldLabels = {
   projectURL: 'Project URL',
   githubURL: 'GitHub URL',
   exam_name: 'Name of Exam',
+  college_name: 'College Name',
   payment_status: 'Payment Status',
 }
 
@@ -21,6 +22,10 @@ function formatDateDDMMYYYY(value) {
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return String(value)
   return parsed.toLocaleDateString('en-GB')
+}
+
+function normalizeDutyRole(role) {
+  return role === 'invigilator' ? 'Invigilator' : role
 }
 
 const configs = {
@@ -41,8 +46,8 @@ const configs = {
   },
   duty_exams: {
     title: 'Duty Exams',
-    empty: { date: '', exam_name: '', role: 'invigilator', payment_status: 'pending' },
-    fields: ['date', 'exam_name', 'role', 'payment_status'],
+    empty: { date: '', exam_name: '', college_name: '', role: 'Invigilator', payment_status: 'pending' },
+    fields: ['date', 'exam_name', 'college_name', 'role', 'payment_status'],
   },
 }
 
@@ -53,11 +58,17 @@ export default function AdminResourcePage({ resource }) {
   const [form, setForm] = useState(config.empty)
   const [saving, setSaving] = useState(false)
   const [uploadStatus, setUploadStatus] = useState('')
+  const [actionStatus, setActionStatus] = useState('')
   const [dutyExamFilters, setDutyExamFilters] = useState({ month: 'all', role: 'all' })
+  const tableFields = resource === 'duty_exams' ? config.fields : config.fields.slice(0, 4)
 
   const normalizedRows = useMemo(
-    () => rows.map((row) => ({ ...row, techStack: Array.isArray(row.techStack) ? row.techStack.join(', ') : row.techStack })),
-    [rows],
+    () => rows.map((row) => ({
+      ...row,
+      role: resource === 'duty_exams' ? normalizeDutyRole(row.role) : row.role,
+      techStack: Array.isArray(row.techStack) ? row.techStack.join(', ') : row.techStack,
+    })),
+    [resource, rows],
   )
   const dutyExamMonthOptions = useMemo(() => {
     if (resource !== 'duty_exams') return []
@@ -73,6 +84,11 @@ export default function AdminResourcePage({ resource }) {
       return monthMatch && roleMatch
     })
   }, [resource, normalizedRows, dutyExamFilters])
+  const monthFilteredDutyExamRows = useMemo(() => {
+    if (resource !== 'duty_exams') return []
+
+    return normalizedRows.filter((row) => dutyExamFilters.month === 'all' || String(row.date || '').startsWith(dutyExamFilters.month))
+  }, [resource, normalizedRows, dutyExamFilters.month])
   const dutyExamStats = useMemo(() => {
     if (resource !== 'duty_exams') return null
 
@@ -80,17 +96,18 @@ export default function AdminResourcePage({ resource }) {
     const received = filteredRows.filter((row) => row.payment_status === 'received').length
     const byRole = dutyRoleOptions.map((role) => ({
       role,
-      count: filteredRows.filter((row) => row.role === role).length,
+      count: monthFilteredDutyExamRows.filter((row) => row.role === role).length,
     }))
 
     return {
       total: filteredRows.length,
       allRecords: rows.length,
+      monthTotal: monthFilteredDutyExamRows.length,
       pending,
       received,
       byRole,
     }
-  }, [resource, filteredRows, rows.length])
+  }, [resource, filteredRows, monthFilteredDutyExamRows, rows.length])
 
   useEffect(() => {
     listRows(resource).then(setRows)
@@ -99,12 +116,15 @@ export default function AdminResourcePage({ resource }) {
   function startEdit(row = null) {
     setEditing(row)
     setForm(row ? { ...config.empty, ...row, techStack: Array.isArray(row.techStack) ? row.techStack.join(', ') : row.techStack } : config.empty)
+    setActionStatus('')
   }
 
   async function save(event) {
     event.preventDefault()
     setSaving(true)
-    const payload = { ...form }
+    setActionStatus('')
+    const payload = Object.fromEntries(config.fields.map((field) => [field, form[field]]))
+    if (resource === 'projects') payload.imageURL = form.imageURL
     if (editing?.id) payload.id = editing.id
     if ('level' in payload) payload.level = Number(payload.level)
     if ('techStack' in payload) payload.techStack = String(payload.techStack).split(',').map((item) => item.trim()).filter(Boolean)
@@ -122,34 +142,47 @@ export default function AdminResourcePage({ resource }) {
       })
       startEdit(null)
       setUploadStatus('')
+      setActionStatus(editing ? 'Updated without refreshing the page.' : 'Created without refreshing the page.')
+    } catch (error) {
+      setActionStatus(error.message || 'Save failed.')
     } finally {
       setSaving(false)
     }
   }
 
   async function remove(id) {
-    await deleteRow(resource, id)
-    setRows((current) => current.filter((row) => row.id !== id))
+    setActionStatus('')
+    try {
+      await deleteRow(resource, id)
+      setRows((current) => current.filter((row) => row.id !== id))
+      setActionStatus('Deleted without refreshing the page.')
+    } catch (error) {
+      setActionStatus(error.message || 'Delete failed.')
+    }
   }
 
   async function handleUpload(event) {
     const file = event.target.files?.[0]
     if (!file) return
     setUploadStatus('Uploading image...')
-    const publicUrl = await uploadProjectImage(file)
-    if (publicUrl) {
-      setForm((current) => ({ ...current, imageURL: publicUrl }))
-      setUploadStatus('Image uploaded.')
-      return
+    try {
+      const publicUrl = await uploadProjectImage(file)
+      if (publicUrl) {
+        setForm((current) => ({ ...current, imageURL: publicUrl }))
+        setUploadStatus('Image uploaded to Supabase Storage. Save the project to publish it.')
+        return
+      }
+      setUploadStatus('Image upload failed. Check storage settings.')
+    } catch (error) {
+      setUploadStatus(error.message || 'Image upload failed. Check storage settings.')
     }
-    setUploadStatus('Image upload failed. Check storage settings.')
   }
 
   return (
     <div>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-3xl font-semibold text-white">{config.title}</h2>
-        <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => startEdit(null)}>
+        <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => startEdit(null)}>
           <Plus size={18} />
           Add
         </button>
@@ -177,7 +210,7 @@ export default function AdminResourcePage({ resource }) {
                   {paymentStatusOptions.map((option) => <option key={option}>{option}</option>)}
                 </select>
               ) : (
-                <input value={value} onChange={updateField} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-white outline-none focus:border-emerald-300/70" />
+                <input required={field === 'college_name'} value={value} onChange={updateField} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-white outline-none focus:border-emerald-300/70" />
               )}
             </label>
           )
@@ -189,6 +222,7 @@ export default function AdminResourcePage({ resource }) {
               <input type="file" accept="image/*" onChange={handleUpload} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-sm text-white" />
             </label>
             {uploadStatus && <p className="text-xs text-cyan-100/68">{uploadStatus}</p>}
+            {form.imageURL && <img className="h-28 w-full rounded-lg object-cover" src={form.imageURL} alt="Project upload preview" />}
           </div>
         )}
         <div className="flex items-end gap-3">
@@ -196,6 +230,7 @@ export default function AdminResourcePage({ resource }) {
           {editing && <button type="button" className="rounded-lg border border-cyan-300/25 px-5 py-3 text-cyan-100 hover:bg-cyan-300/10" onClick={() => startEdit(null)}>Cancel</button>}
         </div>
       </form>
+      {actionStatus && <p className="mt-3 text-sm text-emerald-200">{actionStatus}</p>}
 
       {resource === 'duty_exams' && dutyExamStats && (
         <section className="glass-panel mt-6 rounded-lg p-5">
@@ -249,10 +284,26 @@ export default function AdminResourcePage({ resource }) {
             </article>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => setDutyExamFilters((current) => ({ ...current, role: 'all' }))}
+              className={dutyExamFilters.role === 'all'
+                ? 'rounded-lg border border-emerald-300/45 bg-emerald-300/15 px-3 py-2 text-left text-sm text-emerald-100'
+                : 'rounded-lg border border-cyan-300/15 bg-slate-950/65 px-3 py-2 text-left text-sm text-cyan-100/82 hover:bg-cyan-300/10'}
+            >
+              All Roles: <span className="font-semibold text-white">{dutyExamStats.monthTotal}</span>
+            </button>
             {dutyExamStats.byRole.map((item) => (
-              <div key={item.role} className="rounded-lg border border-cyan-300/15 bg-slate-950/65 px-3 py-2 text-sm text-cyan-100/82">
+              <button
+                type="button"
+                key={item.role}
+                onClick={() => setDutyExamFilters((current) => ({ ...current, role: item.role }))}
+                className={dutyExamFilters.role === item.role
+                  ? 'rounded-lg border border-emerald-300/45 bg-emerald-300/15 px-3 py-2 text-left text-sm text-emerald-100'
+                  : 'rounded-lg border border-cyan-300/15 bg-slate-950/65 px-3 py-2 text-left text-sm text-cyan-100/82 hover:bg-cyan-300/10'}
+              >
                 {item.role}: <span className="font-semibold text-white">{item.count}</span>
-              </div>
+              </button>
             ))}
           </div>
         </section>
@@ -262,7 +313,7 @@ export default function AdminResourcePage({ resource }) {
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-slate-900 text-cyan-100/72">
             <tr>
-              {config.fields.slice(0, 4).map((field) => <th key={field} className="px-4 py-3 font-medium">{fieldLabels[field] ?? field}</th>)}
+              {tableFields.map((field) => <th key={field} className="px-4 py-3 font-medium">{fieldLabels[field] ?? field}</th>)}
               {resource === 'duty_exams' && <th className="px-4 py-3 font-medium">Created At</th>}
               <th className="px-4 py-3 font-medium">Actions</th>
             </tr>
@@ -270,7 +321,7 @@ export default function AdminResourcePage({ resource }) {
           <tbody>
             {filteredRows.map((row) => (
               <tr key={row.id} className="border-t border-cyan-300/10">
-                {config.fields.slice(0, 4).map((field) => (
+                {tableFields.map((field) => (
                   <td key={field} className="max-w-xs px-4 py-3 text-cyan-50/78">
                     {field === 'payment_status' ? (
                       <span className={row[field] === 'received' ? 'rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-2.5 py-1 text-emerald-100' : 'rounded-lg border border-amber-300/30 bg-amber-300/10 px-2.5 py-1 text-amber-100'}>
@@ -302,6 +353,7 @@ export default function AdminResourcePage({ resource }) {
             {resource === 'duty_exams' && (
               <div className="mt-3 grid gap-1 text-xs text-cyan-100/72">
                 <p>Date: <span className="text-white">{formatDateDDMMYYYY(row.date)}</span></p>
+                <p>College: <span className="text-white">{row.college_name || '-'}</span></p>
                 <p>Role: <span className="text-white">{row.role || '-'}</span></p>
                 <p>Payment: <span className="text-white">{row.payment_status || 'pending'}</span></p>
               </div>
