@@ -100,13 +100,8 @@ async function handleLeadNotification(request, response) {
     return response.status(400).json({ error: parsed.error.flatten() })
   }
 
-  try {
-    const result = await sendLeadEmail(parsed.data)
-    response.json({ ok: true, result })
-  } catch (error) {
-    console.error(error)
-    response.status(502).json({ error: 'Lead email notification failed' })
-  }
+  response.json({ ok: true })
+  sendLeadEmail(parsed.data).catch((error) => console.error('Background email failed:', error))
 }
 
 app.post('/api/notifications/lead', handleLeadNotification)
