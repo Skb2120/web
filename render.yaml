@@ -3,8 +3,8 @@ services:
     name: portfolio-backend
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: npm run server
+    buildCommand: npm install --production
+    startCommand: node server/index.js
     envVars:
       - key: PORT
         value: 4000
@@ -19,18 +19,10 @@ services:
       - key: SMTP_SECURE
         value: "false"
       - key: SMTP_USER
-        fromService:
-          name: portfolio-backend
-          property: env.SMTP_USER
+        value: 21sarathkumar@gmail.com
       - key: SMTP_PASS
-        fromService:
-          name: portfolio-backend
-          property: env.SMTP_PASS
+        value: ohhm czty ncmr ulhy
       - key: SMTP_FROM
-        fromService:
-          name: portfolio-backend
-          property: env.SMTP_FROM
+        value: 21sarathkumar@gmail.com
       - key: SMTP_TO
-        fromService:
-          name: portfolio-backend
-          property: env.SMTP_TO
+        value: Sarathkumarbbe@gmail.com
