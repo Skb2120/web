@@ -50,7 +50,6 @@ app.get('/', (_request, response) => {
     endpoints: [
       '/api/portfolio/:table',
       '/api/notifications/lead',
-      '/api/whatsapp/lead',
     ],
   })
 })
@@ -111,7 +110,6 @@ async function handleLeadNotification(request, response) {
 }
 
 app.post('/api/notifications/lead', handleLeadNotification)
-app.post('/api/whatsapp/lead', handleLeadNotification)
 
 async function readPortfolioStore() {
   try {
