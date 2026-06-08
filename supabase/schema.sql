@@ -32,7 +32,7 @@ create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email text not null,
-  phone text,
+  phone text not null,
   message text not null,
   domain text not null,
   idea text not null,
