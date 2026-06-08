@@ -180,15 +180,15 @@ export default function AdminResourcePage({ resource }) {
 
   return (
     <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-3xl font-semibold text-white">{config.title}</h2>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-white">{config.title}</h2>
         <button type="button" className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-300 px-4 py-3 font-semibold text-slate-950 hover:bg-emerald-300" onClick={() => startEdit(null)}>
           <Plus size={18} />
           Add
         </button>
       </div>
 
-      <form className="glass-panel mt-6 grid gap-4 rounded-lg p-5 md:grid-cols-2 xl:grid-cols-3" onSubmit={save}>
+      <form className="glass-panel mt-6 grid gap-4 rounded-lg p-4 sm:p-5 sm:grid-cols-2 lg:grid-cols-3" onSubmit={save}>
         {config.fields.map((field) => {
           const label = fieldLabels[field] ?? field
           const value = form[field] ?? ''

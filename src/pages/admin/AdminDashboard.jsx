@@ -168,7 +168,7 @@ export default function AdminDashboard() {
           <TrendingUp className="text-emerald-200" />
           <h3 className="text-xl font-semibold text-white">{editingConversion ? 'Edit Project Conversion' : 'Lead to Project Conversion'}</h3>
         </div>
-        <form className="mt-5 grid gap-4 md:grid-cols-5" onSubmit={saveConversion}>
+        <form className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5" onSubmit={saveConversion}>
           <input required placeholder="Lead name" value={conversion.leadName} onChange={(event) => setConversion((current) => ({ ...current, leadName: event.target.value }))} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-white outline-none focus:border-emerald-300/70" />
           <input required placeholder="Project title" value={conversion.projectTitle} onChange={(event) => setConversion((current) => ({ ...current, projectTitle: event.target.value }))} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-white outline-none focus:border-emerald-300/70" />
           <input type="number" placeholder="Value" value={conversion.value} onChange={(event) => setConversion((current) => ({ ...current, value: event.target.value }))} className="rounded-lg border border-cyan-300/18 bg-slate-950/70 px-3 py-3 text-white outline-none focus:border-emerald-300/70" />
@@ -184,12 +184,12 @@ export default function AdminDashboard() {
       </section>
 
       <section className="admin-animated-card mt-6 overflow-hidden rounded-lg border border-cyan-300/12">
-        <div className="flex items-center justify-between border-b border-cyan-300/10 bg-slate-900/80 px-5 py-4">
+        <div className="flex flex-col gap-2 border-b border-cyan-300/10 bg-slate-900/80 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <h3 className="text-lg font-semibold text-white">Converted Projects</h3>
           <span className="text-sm text-cyan-100/62">{activeConversionCount} records</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead className="bg-slate-950/70 text-cyan-100/72">
               <tr>
                 {['Lead', 'Project', 'Value', 'Status', 'Date', 'Actions'].map((head) => <th key={head} className="px-5 py-3 font-medium">{head}</th>)}
