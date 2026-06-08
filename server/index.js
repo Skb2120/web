@@ -157,7 +157,7 @@ async function sendLeadEmail(lead) {
   ].filter(([, value]) => !value).map(([name]) => name)
 
   if (missing.length) {
-    console.log('[demo email]', { missing, lead })
+    console.log('[demo email - missing vars]', { missing, lead })
     return { demo: true, channel: 'email', missing }
   }
 
@@ -170,20 +170,33 @@ async function sendLeadEmail(lead) {
     auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
   })
 
-  const info = await transporter.sendMail({
-    from: smtpFrom,
-    to: smtpTo,
-    subject: buildLeadSubject(lead),
-    text,
-    html,
-    replyTo: lead.email,
-  })
+  try {
+    const info = await transporter.sendMail({
+      from: smtpFrom,
+      to: smtpTo,
+      subject: buildLeadSubject(lead),
+      text,
+      html,
+      replyTo: lead.email,
+    })
 
-  return {
-    channel: 'email',
-    accepted: info.accepted,
-    rejected: info.rejected,
-    messageId: info.messageId,
+    console.log('[email sent]', { to: smtpTo, messageId: info.messageId, leadName: lead.name })
+    return {
+      channel: 'email',
+      accepted: info.accepted,
+      rejected: info.rejected,
+      messageId: info.messageId,
+    }
+  } catch (error) {
+    console.error('[email error]', {
+      error: error.message,
+      code: error.code,
+      to: smtpTo,
+      host: smtpHost,
+      port: smtpPort,
+      user: smtpUser ? `${smtpUser.substring(0, 3)}***` : 'none',
+    })
+    throw error
   }
 }
 
