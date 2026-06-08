@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: FRONTEND_ORIGIN
-        value: https://your-netlify-domain.netlify.app
+        value: https://sarathiotdev.netlify.app/
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
