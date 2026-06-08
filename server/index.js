@@ -15,8 +15,12 @@ const port = process.env.PORT || 4000
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const portfolioStorePath = path.join(__dirname, '..', '.logs', 'portfolio-store.json')
 const portfolioTables = new Set(['skills', 'projects', 'services', 'lead_conversions', 'duty_exams'])
+const frontendOrigins = process.env.FRONTEND_ORIGIN
+  ?.split(',')
+  .map((origin) => origin.trim().replace(/\/$/, ''))
+  .filter(Boolean)
 
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN?.split(',') ?? '*' }))
+app.use(cors({ origin: frontendOrigins?.length ? frontendOrigins : '*' }))
 app.use(express.json({ limit: '1mb' }))
 
 const leadSchema = z.object({
@@ -36,6 +40,19 @@ const leadSchema = z.object({
 
 app.get('/health', (_request, response) => {
   response.json({ ok: true, service: 'portfolio-notification-bridge' })
+})
+
+app.get('/', (_request, response) => {
+  response.json({
+    ok: true,
+    service: 'portfolio-notification-bridge',
+    health: '/health',
+    endpoints: [
+      '/api/portfolio/:table',
+      '/api/notifications/lead',
+      '/api/whatsapp/lead',
+    ],
+  })
 })
 
 app.get('/api/portfolio/:table', async (request, response) => {

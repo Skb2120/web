@@ -18,7 +18,7 @@ export default function Hero() {
             <RadioTower size={15} />
             Embedded Systems | IoT | PCB | Full Stack | Freelancer
           </div>
-          <h2 className="neon-text max-w-4xl text-3xl font-bold leading-tight text-white md:text-3xl lg:text-4xl">
+          <h2 className="neon-text max-w-4xl text-5xl font-bold leading-tight text-white md:text-7xl lg:text-8xl">
             Mr. B. Sarathkumar B.E 
           </h2>
           <p className="mt-6 max-w-2xl text-base leading-8 text-cyan-50/78 md:text-xl">
