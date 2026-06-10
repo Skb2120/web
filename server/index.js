@@ -1,4 +1,6 @@
 import cors from 'cors'
+import dns from 'node:dns'
+import { resolve4 } from 'node:dns/promises'
 import dotenv from 'dotenv'
 import express from 'express'
 import { randomUUID } from 'node:crypto'
@@ -7,6 +9,7 @@ import { z } from 'zod'
 import { createClient } from '@supabase/supabase-js'
 
 dotenv.config()
+dns.setDefaultResultOrder('ipv4first')
 
 const app = express()
 const port = process.env.PORT || 4000
@@ -183,44 +186,80 @@ async function sendLeadEmail(lead) {
 
   const text = buildLeadText(lead)
   const html = buildLeadHtml(lead)
-  const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
-    family: 4,
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
-    auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
-  })
+  const smtpAttempts = await buildSmtpAttempts({ smtpHost, smtpPort, smtpSecure })
+  let lastError = null
+
+  for (const smtpAttempt of smtpAttempts) {
+    const transporter = nodemailer.createTransport({
+      host: smtpAttempt.host,
+      port: smtpAttempt.port,
+      secure: smtpAttempt.secure,
+      family: 4,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 45000,
+      tls: smtpAttempt.servername ? { servername: smtpAttempt.servername } : undefined,
+      auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
+    })
+
+    try {
+      const info = await transporter.sendMail({
+        from: smtpFrom,
+        to: smtpTo,
+        subject: buildLeadSubject(lead),
+        text,
+        html,
+        replyTo: lead.email,
+      })
+
+      console.log('[email sent]', { to: smtpTo, messageId: info.messageId, leadName: lead.name, port: smtpAttempt.port })
+      return {
+        channel: 'email',
+        accepted: info.accepted,
+        rejected: info.rejected,
+        messageId: info.messageId,
+        port: smtpAttempt.port,
+      }
+    } catch (error) {
+      lastError = error
+      console.error('[email error]', {
+        error: error.message,
+        code: error.code,
+        to: smtpTo,
+        host: smtpAttempt.host,
+        port: smtpAttempt.port,
+        user: smtpUser ? `${smtpUser.substring(0, 3)}***` : 'none',
+      })
+    }
+  }
+
+  throw lastError
+}
+
+async function buildSmtpAttempts({ smtpHost, smtpPort, smtpSecure }) {
+  const configuredAttempt = { host: smtpHost, port: smtpPort, secure: smtpSecure }
+  const gmailSslAttempt = { host: smtpHost, port: 465, secure: true }
+  const baseAttempts = [
+    configuredAttempt,
+    ...(smtpHost === 'smtp.gmail.com' && smtpPort !== 465 ? [gmailSslAttempt] : []),
+  ]
+
+  if (smtpHost !== 'smtp.gmail.com') return baseAttempts
 
   try {
-    const info = await transporter.sendMail({
-      from: smtpFrom,
-      to: smtpTo,
-      subject: buildLeadSubject(lead),
-      text,
-      html,
-      replyTo: lead.email,
-    })
+    const addresses = await resolve4(smtpHost)
+    const ipv4Attempts = addresses.flatMap((address) =>
+      baseAttempts.map((attempt) => ({
+        ...attempt,
+        host: address,
+        servername: smtpHost,
+      })),
+    )
 
-    console.log('[email sent]', { to: smtpTo, messageId: info.messageId, leadName: lead.name })
-    return {
-      channel: 'email',
-      accepted: info.accepted,
-      rejected: info.rejected,
-      messageId: info.messageId,
-    }
+    return [...ipv4Attempts, ...baseAttempts]
   } catch (error) {
-    console.error('[email error]', {
-      error: error.message,
-      code: error.code,
-      to: smtpTo,
-      host: smtpHost,
-      port: smtpPort,
-      user: smtpUser ? `${smtpUser.substring(0, 3)}***` : 'none',
-    })
-    throw error
+    console.error('[smtp dns error]', { host: smtpHost, error: error.message })
+    return baseAttempts
   }
 }
 
