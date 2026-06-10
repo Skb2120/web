@@ -187,6 +187,10 @@ async function sendLeadEmail(lead) {
     host: smtpHost,
     port: smtpPort,
     secure: smtpSecure,
+    family: 4,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
     auth: smtpUser && smtpPass ? { user: smtpUser, pass: smtpPass } : undefined,
   })
 
