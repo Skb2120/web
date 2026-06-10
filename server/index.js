@@ -15,13 +15,28 @@ const frontendOrigins = process.env.FRONTEND_ORIGIN
   ?.split(',')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean)
+const allowedOrigins = new Set([
+  'https://sarathiotdev.netlify.app',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  ...(frontendOrigins ?? []),
+])
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 )
 
-app.use(cors({ origin: frontendOrigins?.length ? frontendOrigins : '*' }))
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) {
+      callback(null, true)
+      return
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`))
+  },
+}))
 app.use(express.json({ limit: '1mb' }))
 
 const leadSchema = z.object({
