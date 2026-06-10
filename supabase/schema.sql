@@ -32,7 +32,7 @@ create table if not exists public.messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email text not null,
-  phone text not null,
+  phone text,
   message text not null,
   domain text not null,
   idea text not null,
@@ -70,6 +70,7 @@ create table if not exists public.duty_exams (
   created_at timestamptz not null default now()
 );
 
+alter table public.messages add column if not exists phone text default '';
 alter table public.duty_exams add column if not exists college_name text not null default '';
 alter table public.duty_exams drop constraint if exists duty_exams_role_check;
 update public.duty_exams set role = 'Invigilator' where role = 'invigilator';
