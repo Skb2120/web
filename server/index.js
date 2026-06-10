@@ -121,13 +121,24 @@ async function handleLeadNotification(request, response) {
     .single()
   if (dbError) console.error(`Failed to save ${table}:`, dbError)
 
-  response.json({
-    ok: true,
-    dbSaved: !dbError,
-    id: savedLead?.id,
-    created_at: savedLead?.created_at,
-  })
-  sendLeadEmail(lead).catch((error) => console.error('Background email failed:', error))
+  try {
+    const email = await sendLeadEmail(lead)
+    response.json({
+      ok: true,
+      dbSaved: !dbError,
+      id: savedLead?.id,
+      created_at: savedLead?.created_at,
+      email,
+    })
+  } catch (error) {
+    response.status(502).json({
+      ok: false,
+      dbSaved: !dbError,
+      id: savedLead?.id,
+      created_at: savedLead?.created_at,
+      error: error.message || 'Email delivery failed.',
+    })
+  }
 }
 
 app.post('/api/notifications/lead', handleLeadNotification)
@@ -144,6 +155,8 @@ async function sendLeadEmail(lead) {
   const missing = [
     ['SMTP_HOST', smtpHost],
     ['SMTP_PORT', process.env.SMTP_PORT || '587'],
+    ['SMTP_USER', smtpUser],
+    ['SMTP_PASS', smtpPass],
     ['SMTP_FROM', smtpFrom],
     ['SMTP_TO', smtpTo],
   ].filter(([, value]) => !value).map(([name]) => name)
