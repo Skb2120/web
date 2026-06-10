@@ -2,23 +2,24 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import express from 'express'
 import { randomUUID } from 'node:crypto'
-import fs from 'node:fs/promises'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import nodemailer from 'nodemailer'
 import { z } from 'zod'
+import { createClient } from '@supabase/supabase-js'
 
 dotenv.config()
 
 const app = express()
 const port = process.env.PORT || 4000
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const portfolioStorePath = path.join(__dirname, '..', '.logs', 'portfolio-store.json')
 const portfolioTables = new Set(['skills', 'projects', 'services', 'lead_conversions', 'duty_exams'])
 const frontendOrigins = process.env.FRONTEND_ORIGIN
   ?.split(',')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean)
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+)
 
 app.use(cors({ origin: frontendOrigins?.length ? frontendOrigins : '*' }))
 app.use(express.json({ limit: '1mb' }))
@@ -58,39 +59,47 @@ app.get('/api/portfolio/:table', async (request, response) => {
   const table = request.params.table
   if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  const store = await readPortfolioStore()
-  response.json(store[table] ?? [])
+  const { data, error } = await supabase.from(table).select('*').order('created_at', { ascending: false })
+  if (error) return response.status(500).json({ error: error.message })
+
+  response.json(data ?? [])
 })
 
 app.post('/api/portfolio/:table', async (request, response) => {
   const table = request.params.table
   if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  const store = await readPortfolioStore()
-  const now = new Date().toISOString()
-  const row = normalizePortfolioRow(table, {
-    ...request.body,
-    id: request.body.id || randomUUID(),
-    created_at: request.body.created_at || now,
-    updated_at: now,
-  })
-  const rows = Array.isArray(store[table]) ? store[table] : []
+  const id = request.body.id || randomUUID()
 
-  store[table] = rows.some((entry) => entry.id === row.id)
-    ? rows.map((entry) => (entry.id === row.id ? row : entry))
-    : [row, ...rows]
+  if (request.body.id) {
+    const { data, error } = await supabase
+      .from(table)
+      .update({ ...request.body, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
 
-  await writePortfolioStore(store)
-  response.json(row)
+    if (error) return response.status(500).json({ error: error.message })
+    return response.json(data)
+  }
+
+  const { data, error } = await supabase
+    .from(table)
+    .insert([{ ...request.body, id }])
+    .select()
+    .single()
+
+  if (error) return response.status(500).json({ error: error.message })
+  response.json(data)
 })
 
 app.delete('/api/portfolio/:table/:id', async (request, response) => {
   const table = request.params.table
   if (!portfolioTables.has(table)) return response.status(404).json({ error: 'Unknown table' })
 
-  const store = await readPortfolioStore()
-  store[table] = (store[table] ?? []).filter((entry) => entry.id !== request.params.id)
-  await writePortfolioStore(store)
+  const { error } = await supabase.from(table).delete().eq('id', request.params.id)
+  if (error) return response.status(500).json({ error: error.message })
+
   response.json({ ok: true })
 })
 
@@ -100,45 +109,28 @@ async function handleLeadNotification(request, response) {
     return response.status(400).json({ error: parsed.error.flatten() })
   }
 
-  response.json({ ok: true })
-  sendLeadEmail(parsed.data).catch((error) => console.error('Background email failed:', error))
+  const lead = parsed.data
+  const table = lead.type === 'chat_lead' ? 'chat_leads' : 'messages'
+  const leadRow = { ...lead }
+  delete leadRow.type
+
+  const { data: savedLead, error: dbError } = await supabase
+    .from(table)
+    .insert([leadRow])
+    .select('id, created_at')
+    .single()
+  if (dbError) console.error(`Failed to save ${table}:`, dbError)
+
+  response.json({
+    ok: true,
+    dbSaved: !dbError,
+    id: savedLead?.id,
+    created_at: savedLead?.created_at,
+  })
+  sendLeadEmail(lead).catch((error) => console.error('Background email failed:', error))
 }
 
 app.post('/api/notifications/lead', handleLeadNotification)
-
-async function readPortfolioStore() {
-  try {
-    const raw = await fs.readFile(portfolioStorePath, 'utf8')
-    const parsed = JSON.parse(raw)
-    return {
-      ...parsed,
-      duty_exams: Array.isArray(parsed.duty_exams) ? parsed.duty_exams.map((row) => normalizePortfolioRow('duty_exams', row)) : [],
-    }
-  } catch (error) {
-    if (error.code !== 'ENOENT') console.error(error)
-    return { duty_exams: [] }
-  }
-}
-
-function normalizePortfolioRow(table, row) {
-  if (table !== 'duty_exams') return row
-
-  return {
-    date: row.date,
-    exam_name: row.exam_name,
-    college_name: row.college_name,
-    role: row.role === 'invigilator' ? 'Invigilator' : row.role,
-    payment_status: row.payment_status || 'pending',
-    id: row.id,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  }
-}
-
-async function writePortfolioStore(store) {
-  await fs.mkdir(path.dirname(portfolioStorePath), { recursive: true })
-  await fs.writeFile(portfolioStorePath, JSON.stringify(store, null, 2))
-}
 
 async function sendLeadEmail(lead) {
   const smtpHost = process.env.SMTP_HOST

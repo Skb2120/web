@@ -1,5 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import ContactForm from '../components/ContactForm'
 import Hero from '../components/Hero'

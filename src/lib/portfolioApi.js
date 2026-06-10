@@ -95,9 +95,18 @@ export async function createContactMessage(payload) {
     status: 'new',
   }
 
-  const notification = await notifyLeadNotification({ type: 'contact', ...cleanPayload })
+  if (backendURL) {
+    const notification = await notifyLeadNotification({ type: 'contact', ...cleanPayload })
+    return {
+      ...cleanPayload,
+      id: notification.id ?? crypto.randomUUID(),
+      created_at: notification.created_at ?? new Date().toISOString(),
+      notification,
+    }
+  }
+
   const row = await insertPublicRowBestEffort('messages', cleanPayload)
-  return { ...row, notification }
+  return { ...row, notification: null }
 }
 
 export async function createChatLead(payload) {
@@ -110,9 +119,18 @@ export async function createChatLead(payload) {
     status: 'new',
   }
 
-  const notification = await notifyLeadNotification({ type: 'chat_lead', ...rowPayload })
+  if (backendURL) {
+    const notification = await notifyLeadNotification({ type: 'chat_lead', ...rowPayload })
+    return {
+      ...rowPayload,
+      id: notification.id ?? crypto.randomUUID(),
+      created_at: notification.created_at ?? new Date().toISOString(),
+      notification,
+    }
+  }
+
   const row = await insertPublicRowBestEffort('chat_leads', rowPayload)
-  return { ...row, notification }
+  return { ...row, notification: null }
 }
 
 export async function uploadProjectImage(file) {

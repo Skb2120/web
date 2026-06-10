@@ -12,6 +12,14 @@ services:
         value: production
       - key: FRONTEND_ORIGIN
         value: https://sarathiotdev.netlify.app
+      - key: SUPABASE_URL
+        fromService:
+          type: env
+          property: SUPABASE_URL
+      - key: SUPABASE_ANON_KEY
+        fromService:
+          type: env
+          property: SUPABASE_ANON_KEY
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -19,10 +27,16 @@ services:
       - key: SMTP_SECURE
         value: "false"
       - key: SMTP_USER
-        value: 21sarathkumar@gmail.com
+        fromService:
+          type: env
+          property: SMTP_USER
       - key: SMTP_PASS
-        value: ohhm czty ncmr ulhy
+        fromService:
+          type: env
+          property: SMTP_PASS
       - key: SMTP_FROM
-        value: 21sarathkumar@gmail.com
+        fromService:
+          type: env
+          property: SMTP_FROM
       - key: SMTP_TO
         value: Sarathkumarbbe@gmail.com
